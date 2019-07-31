@@ -1,0 +1,15 @@
+django
+gunicorn
+django-heroku
+dash==1.0.2
+dash-core-components==1.0.0
+dash-html-components==1.0.0
+dash-renderer==1.0.0
+dash-table==4.0.2
+Jinja2==2.10.1
+plotly==4.0.0
+requests==2.22.0
+requests-futures==1.0.0
+scikit-learn==0.21.2
+tensorflow==1.14.0
+ediblepickle==1.1.3
