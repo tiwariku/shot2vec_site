@@ -1,6 +1,7 @@
 django
 gunicorn
 django-heroku
+python==3.7.3
 dash==1.0.2
 dash-core-components==1.0.0
 dash-html-components==1.0.0
