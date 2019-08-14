@@ -13,12 +13,25 @@ import dash_html_components as html
 #import plotly.graph_objs as go
 #from numpy.random import randint
 #from flask_caching import Cache
+from gensim.models import KeyedVectors
 import functions as fn
 import model_fns as mf
 import in_out as io
 import data_processing as dp
 import corpse_maker as cm
 from baseline_models import MarkovEstimator
+import tensorflow as tf
+from tensorflow import keras
+from tensorflow.keras.layers import Embedding
+from tensorflow.keras.layers import Dense
+from tensorflow.keras.layers import TimeDistributed
+from tensorflow.keras.utils import to_categorical
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import LSTM
+from tensorflow.keras import layers
+#from keras.models import load_model
+global graph
+graph = tf.get_default_graph()
 
 
 EXTERNAL_STYLESHEETS = ['https://codepen.io/chriddyp/pen/bWLwgP.css',
@@ -30,10 +43,23 @@ MODEL_WEIGHTS = ASSET_DIR+'model_weights.hdf5'
 VOCABULARY = dp.unpickle_it(ASSET_DIR+'vocabulary')
 PLAY_TO_ID = dp.unpickle_it(ASSET_DIR+'play_to_id')
 ID_TO_PLAY = dp.unpickle_it(ASSET_DIR+'id_to_play')
-HIDDEN_SIZE = 30
-MODEL_PREDICTING = mf.make_prediction_model_file(MODEL_WEIGHTS,
-                                                 VOCABULARY,
-                                                 hidden_size=HIDDEN_SIZE)
+EMBEDDING_DIM = 20
+CORPUS_NAME = f'./assets/zones_{EMBEDDING_DIM}'
+
+WV = KeyedVectors.load(f'{CORPUS_NAME}.wv')
+EMBEDDING_MATRIX = WV.vectors
+CAT_DIM, EMB_DIM = EMBEDDING_MATRIX.shape
+HDF5_FILE = f"./assets/RNN_MODEL_SOFT_FIT.h5"
+#MODEL_PRED = make_rnn_predicting_model(HDF5_FILE, CAT_DIM, EMB_DIM)
+
+from tensorflow.keras.models import model_from_json
+def load_model_json(filename):
+    with open(filename, "r") as json_file:
+        loaded_model_json = json_file.read()
+    return model_from_json(loaded_model_json)
+
+#print(model.predict([0,0,0,0]))
+
 STRIPPER = cm.strip_name_zone
 BASE_MODEL_DIR = './assets/markov_zone'
 BASE_MODEL = MarkovEstimator()
@@ -129,10 +155,16 @@ def update_rink_fig(plays):
     This callback updates the 'rink fig' with the game json, which is stored in
     my-store under property 'data'
     """
+    MODEL_PRED = load_model_json('./assets/RNN_PRED.json')
+    MODEL_PRED.load_weights("./assets/RNN_PRED.h5")
     goal_probs = None
     if plays:
-        play_str = str(STRIPPER(plays[-1]))
-        goal_probs = BASE_MODEL.goal_probs(play_str)
+        #play_str = str(STRIPPER(plays[-1]))
+        plays_serial = [str(STRIPPER(play)) for play in plays]
+        plays_ind = [WV.vocab[play].index for play in plays_serial]
+        preds = MODEL_PRED.predict(plays_ind)[-1, 0, :]
+        goal_probs = [preds[27], preds[39], preds[26]]
+        #goal_probs = BASE_MODEL.goal_probs(play_str)
     return fn.make_rink_fig(plays, goal_probs)
 
 @APP.callback(Output(component_id='my-store', component_property='data'),
@@ -158,7 +190,8 @@ def get_current_plays(n_clicks, game_json):
     makes a truncated list of game plays (so far) into store game-plays
     """
     if game_json:
-        return dp.game_to_plays(game_json, cast_fn=lambda x: x)[:n_clicks]
+        plays = dp.game_to_plays(game_json, cast_fn=lambda x: x)[:n_clicks]
+        return plays
     return None
 
 @APP.callback(Output(component_id='step forward',
