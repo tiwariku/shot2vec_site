@@ -1,1 +1,1 @@
-Website for shot2vec webapp. See RNN_NOTES.ipynb for notes on the model.
+shot2vec webapp: National Hockey League play-by-play predictions using word2vec-like embeddings of hockey plays and a simple recurrent neural network. TensorFlow/Keras. See RNN_NOTES.ipynb for notes on the model.
